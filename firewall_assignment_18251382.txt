@@ -1,0 +1,161 @@
+=============================
+ET4028 - Firewall Assignment:
+=============================
+Student Name:   Dylan Coffey
+Student ID:     18251382
+
+
+=============
+ACL Commands:
+=============
+(10) ip access-list extended BORDER_FA_00
+(20) deny ip 136.201.0.0 0.0.255.255 any                                                        # Ingress filtering (deny addresses from the corporate network range)
+(30) deny ip 192.168.0.0 0.0.255.255 any                                                        # Ingress filtering (deny suspicious reserved ranges)
+(40) deny ip 172.16.0.0 0.0.255.255 any                                                         # Ingress filtering (deny suspicious reserved ranges)
+(50) deny ip 172.32.0.0 0.0.255.255 any                                                         # Ingress filtering (deny suspicious reserved ranges)
+(60) deny ip 10.0.0.0 0.255.255.255 any                                                         # Ingress filtering (deny suspicious reserved ranges)
+(70) deny ip host 127.0.0.1 any                                                                 # Ingress filtering (deny suspicious loopback address)
+(80) deny ip 166.60.0.0 0.0.255.255 any                                                         # Source IP Addresses of EvilGroup are denied access
+(90) permit udp any any eq 520                                                                  # RIP routing is permitted access
+(100) permit tcp any gt 1023 host 136.201.1.10 eq 53 reflect ANY_PDNS                           # Any outside machine (port >= 1024) can access Public DNS Server (port = 53)
+(110) permit tcp any gt 1023 host 136.201.1.20 eq 443 reflect ANY_PWS                           # Everybody (port >= 1024) can access Public Web Server (port = 443)
+(120) permit tcp 20.0.0.0 0.255.255.255 gt 1023 host 136.201.20.100 eq 1433 reflect PAR_DBS     # Partner (port >= 1024, subnet = /8) can access Database Server (port = 1433)
+(130) evaluate PDNS_ANY                                                                         # Return traffic for Public DNS Server (port = 53) accessing outside machines (port >= 1024)
+(140) evaluate WS_ANY_PWS                                                                       # Return traffic for Workstations (port >= 1024, subnet = /8) accessing any web server (port = 443)
+(150) deny ip any any                                                                           # All remaining traffic is denied access
+(160) exit
+(170) int FastEthernet0/0
+(180) ip access-group BORDER_FA_00 in
+(190) exit
+
+
+(200) ip access-list extended BORDER_FA_10
+(210) deny ip 192.168.0.0 0.0.255.255 any                                                   # Egress filtering (deny suspicious reserved ranges)
+(220) deny ip 172.16.0.0 0.0.255.255 any                                                    # Egress filtering (deny suspicious reserved ranges)
+(230) deny ip 172.32.0.0 0.0.255.255 any                                                    # Egress filtering (deny suspicious reserved ranges)
+(240) deny ip 10.0.0.0 0.255.255.255 any                                                    # Egress filtering (deny suspicious reserved ranges)
+(250) deny ip host 127.0.0.1 any                                                            # Egress filtering (deny suspicious loopback address)
+(260) permit tcp host 136.201.1.10 gt 1023 any eq 53 reflect PDNS_ANY                       # Public DNS Server (port >= 1024) can access any outside machine (port = 53)
+(270) permit tcp host 136.201.1.10 gt 1023 host 136.201.20.50 eq 53 reflect PDNS_IDNS       # Public DNS Server (port >= 1024) can access Internal DNS Server (port = 53)
+(280) permit tcp host 136.201.1.20 gt 1023 host 136.201.20.100 eq 1433 reflect PWS_DBS      # Public Web Server (port >= 1024) can access Database Server (port = 1433)
+(290) evaluate ANY_PDNS                                                                     # Return traffic for outside machines (port >= 1024) accessing Public DNS Server (port = 53)
+(300) evaluate ANY_PWS                                                                      # Return traffic for everybody (port >= 1024) accessing Public Web Server (port = 443)
+(310) evaluate IDNS_PDNS                                                                    # Return traffic for Internal DNS Server (port >= 1024) accessing Public DNS Server (port = 53)
+(320) evaluate A_ANY_PC_S                                                                   # Return traffic for Admin PCs (port >= 1024) accessing any PC/Server (port = 22)
+(330) evaluate A_ANY_RD                                                                     # Return traffic for Admin PCs (port >= 1024) accessing any Remote Desktop (port = 3389)
+(340) deny ip any any                                                                       # All remaining traffic is denied access
+(350) exit
+(360) int FastEthernet1/0
+(370) ip access-group BORDER_FA_10 in
+(380) exit
+
+
+(390) ip access-list extended BORDER_FA_20
+(400) deny ip 192.168.0.0 0.0.255.255 any                                                           # Egress filtering (deny suspicious reserved ranges)
+(410) deny ip 172.16.0.0 0.0.255.255 any                                                            # Egress filtering (deny suspicious reserved ranges)
+(420) deny ip 172.32.0.0 0.0.255.255 any                                                            # Egress filtering (deny suspicious reserved ranges)
+(430) deny ip 10.0.0.0 0.255.255.255 any                                                            # Egress filtering (deny suspicious reserved ranges)
+(440) deny ip host 127.0.0.1 any                                                                    # Egress filtering (deny suspicious loopback address)
+(450) permit tcp any gt 1023 host 136.201.1.20 eq 443 reflect ANY_PWS                               # Everybody (port >= 1024) can access Public Web Server (port = 443)
+(460) permit tcp host 136.201.20.50 gt 1023 host 136.201.1.10 eq 53 reflect IDNS_PDNS               # Internal DNS Server (port >= 1024) can access Public DNS Server (port = 53)
+(470) permit tcp 136.201.40.0 0.0.0.2555 gt 1023 any eq 443 reflect WS_ANY_PWS                      # Workstations (port >= 1024, subnet = /8) can access any web server (port = 443)
+(480) permit tcp 136.201.50.0 0.0.0.63 gt 1023 136.201.0.0 0.0.255.255 eq 22 reflect A_ANY_PC_S     # Admin PCs (port >= 1024) can access any PC/Server (port = 22)
+(490) permit tcp 136.201.50.0 0.0.0.63 gt 1023 136.201.0.0 0.0.255.255 eq 3389 reflect A_ANY_RD     # Admin PCs (port >= 1024) can access any Remote Desktop (port = 3389)
+(500) evaluate PDNS_IDNS                                                                            # Return traffic for Public DNS Server (port >= 1024) accessing Internal DNS Server (port = 53)
+(510) evaluate PWS_DBS                                                                              # Return traffic for Public Web Server (port >= 1024) accessing Database Server (port = 1433)
+(520) evaluate PAR_DBS                                                                              # Return traffic for Partner (port >= 1024, subnet = /8) accessing Database Server (port = 1433)
+(530) deny ip any any                                                                               # All remaining traffic is denied access
+(540) exit
+(550) int FastEthernet2/0
+(560) ip access-group BORDER_FA_20 in
+(570) exit
+
+
+(580) ip access-list extended INTERNAL_FA_00
+(590) permit udp any any eq 520                                                                 # RIP routing is permitted access
+(600) permit tcp host 136.201.1.10 gt 1023 host 136.201.20.50 eq 53 reflect PDNS_IDNS           # Public DNS Server (port >= 1024) can access Internal DNS Server (port = 53)
+(610) permit tcp host 136.201.1.20 gt 1023 host 136.201.20.100 eq 1433 reflect PWS_DBS          # Public Web Server (port >= 1024) can access Database Server (port = 1433)
+(620) permit tcp 136.201.40.0 0.0.0.255 gt 1023 host 136.201.20.100 eq 1433 reflect WS_DBS      # Workstations (port >= 1024, subnet = /24) can access Database Server (port = 1433)
+(630) permit tcp 20.0.0.0 0.255.255.255 gt 1023 host 136.201.20.100 eq 1433 reflect PAR_DBS     # Partner (port >= 1024, subnet = /8) can access Database Server (port = 1433)
+(640) permit tcp 136.201.40.0 0.0.0.255 gt 1023 host 136.201.20.50 eq 53 reflect WS_IDNS        # Workstations (port >= 1024, subnet = /24) can access Internal DNS Server (port = 53)
+(650) evaluate ANY_PWS                                                                          # Return traffic for everybody (port >= 1024) accessing Public Web Server (port = 443)
+(660) evaluate IDNS_PDNS                                                                        # Return traffic for Internal DNS Server (port >= 1024) accessing Public DNS Server (port = 53)
+(670) evaluate A_ANY_PC_S                                                                       # Return traffic for Admin PCs (port >= 1024) accessing any PC/Server (port = 22)
+(680) evaluate A_ANY_RD                                                                         # Return traffic for Admin PCs (port >= 1024) accessing any Remote Desktop (port = 3389)
+(690) deny ip any any                                                                           # All remaining traffic is denied access
+(700) exit
+(710) int FastEthernet0/0
+(720) ip access-group INTERNAL_FA_00 in
+(730) exit
+
+
+(740) ip access-list extended INTERNAL_FA_10
+(750) permit tcp any gt 1023 host 136.201.1.20 eq 443 reflect ANY_PWS                       # Everybody (port >= 1024) can access Public Web Server (port = 443)
+(760) permit tcp host 136.201.20.50 gt 1023 host 136.201.1.10 eq 53 reflect IDNS_PDNS       # Internal DNS Server (port >= 1024) can access Public DNS Server (port = 53)
+(770) evaluate PDNS_IDNS                                                                    # Return traffic for Public DNS Server (port >= 1024) accessing Internal DNS Server (port = 53)
+(780) evaluate PWS_DBS                                                                      # Return traffic for Public Web Server (port >= 1024) accessing Database Server (port = 1433)
+(790) evaluate WS_DBS                                                                       # Return traffic for Workstations (port >= 1024, subnet = /24) accessing Database Server (port = 1433)
+(800) evaluate PAR_DBS                                                                      # Return traffic for Partner (port >= 1024, subnet = /8) accessing Database Server (port = 1433)
+(810) evaluate WS_IDNS                                                                      # Return traffic for Workstations (port >= 1024, subnet = /24) accessing Internal DNS Server (port = 53)
+(820) evaluate A_ANY_PC_S                                                                   # Return traffic for Admin PCs (port >= 1024) accessing any PC/Server (port = 22)
+(830) evaluate A_ANY_RD                                                                     # Return traffic for Admin PCs (port >= 1024) accessing any Remote Desktop (port = 3389)
+(840) deny ip any any                                                                       # All remaining traffic is denied access
+(850) exit
+(860) int FastEthernet1/0
+(870) ip access-group INTERNAL_FA_10 in
+(880) exit
+
+
+(890) ip access-list extended INTERNAL_FA_20
+(900) permit tcp any gt 1023 host 136.201.1.20 eq 443 reflect ANY_PWS                               # Everybody (port >= 1024) can access Public Web Server (port = 443)
+(910) permit tcp 136.201.50.0 0.0.0.63 gt 1023 136.201.0.0 0.0.255.255 eq 22 reflect A_ANY_PC_S     # Admin PCs (port >= 1024) can access any PC/Server (port = 22)
+(920) permit tcp 136.201.50.0 0.0.0.63 gt 1023 136.201.0.0 0.0.255.255 eq 3389 reflect A_ANY_RD     # Admin PCs (port >= 1024) can access any Remote Desktop (port = 3389)
+(930) deny ip any any                                                                               # All remaining traffic is denied access
+(940) exit
+(950) int FastEthernet2/0
+(960) ip access-group INTERNAL_FA_20 in
+(970) exit
+
+
+==============================
+Firewall Evaluation Questions:
+==============================
+Question 1: Packet is dropped by (80), as policy denies access for packets with the source IP address of EvilGroup.
+
+Question 2: Packet is dropped by (20), as policy uses ingress filtering to deny access to addresses in the corporate network range.
+
+Question 3: Packet is dropped by (40), as policy uses ingress filtering to deny access to addresses in the reserved private-use ranges.
+
+Question 4: Packet is dropped by (150), as policy requests outside machines to send a HTTPS request with a destination port = 443, as shown in (110).
+
+Question 5: Packet is permitted by (110). Return packet is permitted by (300).
+
+Question 6: Connection is permitted by (120) and (630). Return traffic is permitted by (800) and (520).
+
+Question 7: Connection is denied by (150), as policy requests partner machines to use a source port >= 1024, as shown in (120).
+
+Question 8: RIP Routing is permitted by (90).
+
+Question 9: Connection is denied by (340), as policy does not permit Public Web Server to connect to outside machines.
+
+Question 10: Connection is permitted by (280) and (610). Return traffic is permitted by (780) and (510).
+
+Question 11: Packet is permitted by (260). Return packet is permitted by (130).
+
+Question 12: Connection is denied by (340), as policy does not permit Public DNS Server to connect to the MS Database Server.
+
+Question 13: Packet is permitted by (100). Return packet is permitted by (290).
+
+Question 14: Packet is permitted by (760) and (460). Return packet is permitted by (310) and (660).
+
+Question 15: Packet is dropped by (840), as policy does not permit MS Database Server to initiate connections.
+
+Question 16: Packet is permitted by (470). Return packet is permitted by (140).
+
+Question 17: Connection is permitted by (620). Return traffic is permitted by (790).
+
+Question 18: Packet is dropped by (150), as policy does not permit partner machines to send a HTTPS request to an Internal PC.
+
+Question 19: Session connection is permitted by (910) and (480). Return traffic is permitted by (320) and (670).
+
+Question 20: Session connection is permitted by (920). Return traffic is permitted by (680).
